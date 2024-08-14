@@ -43,6 +43,7 @@ pub fn make_where_clause<'a>(
     generics: &'a Generics,
     data: &'a syn::Data,
     scale_info: &syn::Path,
+    skip_all_type_params: bool,
 ) -> Result<WhereClause> {
     let mut where_clause = generics
         .where_clause
@@ -100,7 +101,7 @@ pub fn make_where_clause<'a>(
         let mut bounds = type_param.bounds.clone();
         if attrs
             .skip_type_params()
-            .map_or(true, |skip| !skip.skip(type_param))
+            .map_or(!skip_all_type_params, |skip| !skip.skip(type_param))
         {
             bounds.push(parse_quote!(#scale_info ::TypeInfo));
         }

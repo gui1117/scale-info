@@ -40,7 +40,7 @@ pub struct Attributes {
 
 impl Attributes {
     /// Extract out `#[scale_info(...)]` attributes from an item.
-    pub fn from_ast(item: &syn::DeriveInput) -> syn::Result<Self> {
+    pub fn from_ast(item: &syn::DeriveInput, skip_all_type_params: bool) -> syn::Result<Self> {
         let mut bounds = None;
         let mut skip_type_params = None;
         let mut capture_docs = None;
@@ -72,6 +72,13 @@ impl Attributes {
                         bounds = Some(parsed_bounds);
                     }
                     ScaleInfoAttr::SkipTypeParams(parsed_skip_type_params) => {
+                        if skip_all_type_params {
+                            return Err(syn::Error::new(
+                                attr.span(),
+                                "`skip_type_params` attributes is unnecessary in `TypeInfoNoBound`, all type parameters are skipped.",
+                            ));
+                        }
+
                         if skip_type_params.is_some() {
                             return Err(syn::Error::new(
                                 attr.span(),

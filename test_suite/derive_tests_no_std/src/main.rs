@@ -49,11 +49,16 @@ fn test() {
     assert_eq!(Struct::<TupleStruct>::type_info().type_params.len(), 1);
     assert_eq!(CLike::type_info().type_params.len(), 0);
     assert_eq!(E::<CLike>::type_info().type_params.len(), 1);
+    assert_eq!(UnitStructNoBound::type_info().type_params.len(), 0);
+    assert_eq!(TupleStructNoBound::type_info().type_params.len(), 0);
+    assert_eq!(StructNoBound::<TupleStruct>::type_info().type_params.len(), 1);
+    assert_eq!(CLikeNoBound::type_info().type_params.len(), 0);
+    assert_eq!(ENoBound::<CLike>::type_info().type_params.len(), 1);
 }
 
 use bitvec::{order::Lsb0, vec::BitVec};
 use scale::{Decode, Encode};
-use scale_info::TypeInfo;
+use scale_info::{TypeInfo, TypeInfoNoBound};
 
 #[allow(unused)]
 #[derive(TypeInfo, Decode, Encode)]
@@ -81,6 +86,37 @@ enum CLike {
 #[allow(unused)]
 #[derive(TypeInfo, Decode, Encode)]
 enum E<T> {
+    A(T),
+    B { b: T },
+    C,
+}
+
+#[allow(unused)]
+#[derive(TypeInfoNoBound, Decode, Encode)]
+struct UnitStructNoBound;
+
+#[allow(unused)]
+#[derive(TypeInfoNoBOund, Decode, Encode)]
+struct TupleStructNoBound(u128, bool);
+
+#[allow(unused)]
+#[derive(TypeInfoNoBound, Decode, Encode)]
+struct StructNoBound<T> {
+    t: T,
+    bitvec: BitVec<u16, Lsb0>,
+}
+
+#[allow(unused)]
+#[derive(TypeInfoNoBound, Decode, Encode)]
+enum CLikeNoBound {
+    A,
+    B,
+    C,
+}
+
+#[allow(unused)]
+#[derive(TypeInfoNoBound, Decode, Encode)]
+enum ENoBound<T> {
     A(T),
     B { b: T },
     C,

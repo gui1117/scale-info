@@ -375,7 +375,7 @@ pub use self::{
 };
 
 #[cfg(feature = "derive")]
-pub use scale_info_derive::TypeInfo;
+pub use scale_info_derive::{TypeInfo, TypeInfoNoBound};
 
 /// Implementors return their meta type information.
 pub trait TypeInfo {

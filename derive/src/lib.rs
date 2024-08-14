@@ -34,15 +34,38 @@ use syn::{
 
 #[proc_macro_derive(TypeInfo, attributes(scale_info, codec))]
 pub fn type_info(input: TokenStream) -> TokenStream {
-    match generate(input.into()) {
+    match generate(input.into(), false) {
         Ok(output) => output.into(),
         Err(err) => err.to_compile_error().into(),
     }
 }
 
-fn generate(input: TokenStream2) -> Result<TokenStream2> {
-    let type_info_impl = TypeInfoImpl::parse(input)?;
-    let type_info_impl_toks = type_info_impl.expand()?;
+/// Same as `TypeInfo` derive macro except the type parameters are not included in the type info.
+///
+/// # Example:
+/// ```
+/// #[derive(TypeInfoNoBound)]
+/// struct MyStruct<T: Config>(T::AccountId);
+/// ```
+/// will not include the type parameter `T` in the type info.
+///
+/// It is exactly the same as writing:
+/// ```
+/// #[derive(TypeInfo)]
+/// #[scale_info(skip_type_params(T))]
+/// struct MyStruct<T: Config>(T::AccountId);
+/// ```
+#[proc_macro_derive(TypeInfoNoBound, attributes(scale_info, codec))]
+pub fn type_info_no_bound(input: TokenStream) -> TokenStream {
+    match generate(input.into(), true) {
+        Ok(output) => output.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+fn generate(input: TokenStream2, skip_all_type_params: bool) -> Result<TokenStream2> {
+    let type_info_impl = TypeInfoImpl::parse(input, skip_all_type_params)?;
+    let type_info_impl_toks = type_info_impl.expand(skip_all_type_params)?;
     Ok(quote! {
         #[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
         const _: () = {
@@ -57,14 +80,14 @@ struct TypeInfoImpl {
 }
 
 impl TypeInfoImpl {
-    fn parse(input: TokenStream2) -> Result<Self> {
+    fn parse(input: TokenStream2, skip_all_type_params: bool) -> Result<Self> {
         let ast: DeriveInput = syn::parse2(input)?;
-        let attrs = attr::Attributes::from_ast(&ast)?;
+        let attrs = attr::Attributes::from_ast(&ast, skip_all_type_params)?;
 
         Ok(Self { ast, attrs })
     }
 
-    fn expand(&self) -> Result<TokenStream2> {
+    fn expand(&self, skip_all_type_params: bool) -> Result<TokenStream2> {
         let ident = &self.ast.ident;
         let ident_str = ident.to_string();
         let scale_info = crate_path(self.attrs.crate_path())?;
@@ -75,16 +98,18 @@ impl TypeInfoImpl {
             &self.ast.generics,
             &self.ast.data,
             &scale_info,
+            skip_all_type_params,
         )?;
 
         let (impl_generics, ty_generics, _) = self.ast.generics.split_for_impl();
 
         let type_params = self.ast.generics.type_params().map(|tp| {
             let ty_ident = &tp.ident;
+
             let ty = if self
                 .attrs
                 .skip_type_params()
-                .map_or(true, |skip| !skip.skip(tp))
+                .map_or(!skip_all_type_params, |skip| !skip.skip(tp))
             {
                 quote! { ::core::option::Option::Some(#scale_info::meta_type::<#ty_ident>()) }
             } else {
